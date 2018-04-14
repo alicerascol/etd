@@ -17,5 +17,8 @@ git clone https://github.com/stavinski/etd.git && cd etd
 
 # Usage
 
-setup etd.conf
-`python etd.py`
+_change settings in etd.conf or use separate config file_
+
+```
+python etd.py`
+```
