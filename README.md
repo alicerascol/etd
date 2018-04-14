@@ -8,3 +8,14 @@ The monitor will put the WLAN device specified into monitor mode and will scan f
 it will periodically hop channels, it then compares the bssid & ssid against a configured whitelist and any found that do not
 match will then be recorded and an alert sent.
 
+## Install
+
+```
+pip install -r requirements.txt
+git clone https://github.com/stavinski/etd.git && cd etd
+```
+
+# Usage
+
+setup etd.conf
+`python etd.py`
