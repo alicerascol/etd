@@ -16,7 +16,7 @@ from argparse import ArgumentParser
 
 # globals
 verbose = False
-channel = 1
+aps = []
 
 # consts
 SECTIONS_GLOBAL = "global"
@@ -26,12 +26,18 @@ SECTIONS_PATTERNS = "patterns"
 
 # ran in separate thread peridocally changing device channel
 def channel_hopper(conf):
-  global channel
   mon_device = conf.get(SECTIONS_GLOBAL, "mon_device", "mon0")
+  use_5ghz = conf.getboolean(SECTIONS_GLOBAL, "include_5ghz")
+  channels = list(range(1, 14))
+
+  # if we need to add the 5ghz channels in
+  if use_5ghz:
+    additional = conf.get(SECTIONS_GLOBAL, "5ghz_channels")
+    channels.extend([int(x) for x in additional.split(",")])
 
   while True:
     try:
-      channel = random.randrange(1,14)
+      channel = random.choice(channels)
       os.system("iw dev %s set channel %d" % (mon_device, channel))
       time.sleep(1)
     except KeyboardInterrupt:
@@ -86,8 +92,19 @@ def remove_monitoring_device(conf):
   os.system("iw %s del" % mon_device)
 
 
+def ssid_matches_patterns(conf, ssid):
+  patterns = conf.options("patterns")
+  return any((fnmatch.fnmatch(ssid, pattern) for pattern in patterns))
+
+
 def packet_handler(pkt):
-  print "%s - SSID: %s" % (pkt.addr2, pkt.info)
+  ssid = pkt[Dot11Elt].info
+  bssid = pkt[Dot11].addr3
+  channel = int( ord(pkt[Dot11Elt:3].info))
+
+  if not bssid in aps:
+    aps.append(bssid)
+    print "CH: %i BSSID: %s - SSID: %s" % (channel, bssid, ssid)
 
 
 def start_sniffing(conf):
@@ -120,7 +137,7 @@ if __name__ == "__main__":
 
   parser = ArgumentParser(description="EvilTwin Detector tool - Mike Cromwell 2018")
 
-  parser.add_argument("-v", "--verbose", help="add extra logging", type=bool, default=False)
+  parser.add_argument("-v", "--verbose", help="add extra logging", default=False, action="store_true")
   parser.add_argument("-c", "--config", help="use different config file", type=str, default="etd.conf")
 
   args = parser.parse_args()
