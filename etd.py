@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import threading
+import signal
 import random
 import binascii
 import fnmatch
@@ -16,6 +17,8 @@ from argparse import ArgumentParser
 
 # globals
 verbose = False
+stopper = None
+t_chopper = None
 aps = []
 
 # consts
@@ -26,6 +29,8 @@ SECTIONS_PATTERNS = "patterns"
 
 # ran in separate thread peridocally changing device channel
 def channel_hopper(conf):
+  global stopper
+
   mon_device = conf.get(SECTIONS_GLOBAL, "mon_device", "mon0")
   use_5ghz = conf.getboolean(SECTIONS_GLOBAL, "include_5ghz")
   channels = list(range(1, 14))
@@ -35,24 +40,23 @@ def channel_hopper(conf):
     additional = conf.get(SECTIONS_GLOBAL, "5ghz_channels")
     channels.extend([int(x) for x in additional.split(",")])
 
-  while True:
+  if verbose:
+    print "[*] channel hopper started"
+
+  while not stopper.is_set():
     try:
       channel = random.choice(channels)
       os.system("iw dev %s set channel %d" % (mon_device, channel))
       time.sleep(1)
-    except KeyboardInterrupt:
-      break
+    except e:
+      print "[!] error channel hopping: %s" % e
 
-
-def get_mac_str(arr):
-  s = hexlify(arr)
-  t = iter(s)
-  st = ':'.join(a+b for a,b in zip(t,t))
-  return st
+  if verbose:
+    print "[*] channel hopper stopped"
 
 
 def parse_config(conf_file):
-  config = ConfigParser()
+  config = ConfigParser(allow_no_value=True)
   config.read(conf_file)
   return config
 
@@ -64,7 +68,7 @@ def set_monitoring_mode(conf):
   print "[*] setting device into monitor mode"
 
   if verbose:
-    print "[!] bring %s device down" % wlan_device
+    print "[!] bringing %s device down" % wlan_device
 
   os.system("ifconfig %s down" % wlan_device)
   os.system("iw dev %s interface add %s type monitor" % (wlan_device, mon_device))
@@ -102,9 +106,13 @@ def packet_handler(pkt):
   bssid = pkt[Dot11].addr3
   channel = int( ord(pkt[Dot11Elt:3].info))
 
+# fix this
+#  if ssid_matches_patterns("", ssid):
+#   print "[+] found matching SSID: %s" % ssid
+
   if not bssid in aps:
     aps.append(bssid)
-    print "CH: %i BSSID: %s - SSID: %s" % (channel, bssid, ssid)
+    print "[+] CH: %i BSSID: %s - %s" % (channel, bssid, ssid)
 
 
 def start_sniffing(conf):
@@ -112,17 +120,27 @@ def start_sniffing(conf):
   sniff(iface=mon_device, filter="type mgt and subtype beacon", store=0, prn=packet_handler)
 
 
+def handle_sigint(signum, frame):
+  global stopper
+  global t_chopper
+
+  stopper.set()
+  t_chopper.join()
+  sys.exit("[!] exiting")
+
 def main(args):
+  global stopper
+  global t_chopper
+
   conf = parse_config(args.config)
   t_chopper = threading.Thread(target=channel_hopper, args=(conf,))
+  stopper = threading.Event()
+  signal.signal(signal.SIGINT, handle_sigint)
 
   try:
     set_monitoring_mode(conf)
-    t_chopper.daemon = True
     t_chopper.start()
     start_sniffing(conf)
-  except KeyboardInterrupt:
-    sys.exit("[!] exiting")
   finally:
     remove_monitoring_device(conf)
 
