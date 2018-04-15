@@ -15,10 +15,18 @@ pip install -r requirements.txt
 git clone https://github.com/stavinski/etd.git && cd etd
 ```
 
-# Usage
+## Usage
 
 _change settings in etd.conf or use separate config file_
 
 ```
-python etd.py`
+etd.py [-h] [-v] [-c CONFIG]
+
+EvilTwin Detector tool - Mike Cromwell 2018
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         add extra logging
+  -c CONFIG, --config CONFIG
+                        use different config file
 ```
