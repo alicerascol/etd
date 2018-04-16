@@ -125,7 +125,10 @@ def handle_sigint(signum, frame):
   global t_chopper
 
   stopper.set()
-  t_chopper.join()
+  
+  if t_chopper and t_chopper.is_alive():
+    t_chopper.join()
+  
   sys.exit("[!] exiting")
 
 def main(args):
