@@ -9,10 +9,12 @@ import signal
 import random
 import binascii
 import fnmatch
+import scapy_ex
 
 from ConfigParser import ConfigParser
 from binascii import hexlify
 from scapy.all import *
+from scapy_ex import * # wifi extensions
 from argparse import ArgumentParser
 
 # globals
@@ -20,24 +22,19 @@ verbose = False
 stopper = None
 t_chopper = None
 aps = []
-
-# consts
-SECTIONS_GLOBAL = "global"
-SECTIONS_SMTP = "smtp"
-SECTIONS_IGNORE = "ignore"
-SECTIONS_PATTERNS = "patterns"
+config = {}
 
 # ran in separate thread peridocally changing device channel
-def channel_hopper(conf):
+def channel_hopper():
   global stopper
 
-  mon_device = conf.get(SECTIONS_GLOBAL, "mon_device", "mon0")
-  use_5ghz = conf.getboolean(SECTIONS_GLOBAL, "include_5ghz")
+  iface = config["mon_iface"]
+  use_5ghz = config["include_5ghz"]
   channels = list(range(1, 14))
 
   # if we need to add the 5ghz channels in
   if use_5ghz:
-    additional = conf.get(SECTIONS_GLOBAL, "5ghz_channels")
+    additional = config["5ghz_channels"]
     channels.extend([int(x) for x in additional.split(",")])
 
   if verbose:
@@ -46,7 +43,7 @@ def channel_hopper(conf):
   while not stopper.is_set():
     try:
       channel = random.choice(channels)
-      os.system("iw dev %s set channel %d" % (mon_device, channel))
+      os.system("iw dev %s set channel %d" % (iface, channel))
       time.sleep(1)
     except e:
       print "[!] error channel hopping: %s" % e
@@ -56,48 +53,61 @@ def channel_hopper(conf):
 
 
 def parse_config(conf_file):
-  config = ConfigParser(allow_no_value=True)
-  config.read(conf_file)
-  return config
-
+  global config
+  
+  global_section = "global"
+  
+  cfg_parser = ConfigParser(allow_no_value=True)
+  cfg_parser.read(conf_file)
+  
+  config = {
+    "iface": cfg_parser.get(global_section, "wlan_iface", "wlan0"),
+    "mon_iface": cfg_parser.get(global_section, "mon_iface", "mon0"),
+    "include_5ghz": cfg_parser.getboolean(global_section, "include_5ghz"),
+    "5ghz_channels": cfg_parser.get(global_section, "5ghz_channels"),
+    "use_smtp": cfg_parser.getboolean(global_section, "use_smtp"),
+    "detections_log": cfg_parser.get(global_section, "detections_log"),
+    "ignores": cfg_parser.items("ignores"),
+    "patterns": cfg_parser.options("patterns")
+  }
 
 def set_monitoring_mode(conf):
-  wlan_device = conf.get(SECTIONS_GLOBAL, "wlan_device", "wlan0")
-  mon_device = conf.get(SECTIONS_GLOBAL, "mon_device", "mon0")
+  wlan_iface = config["iface"]
+  mon_iface = config["mon_iface"]
 
   print "[*] setting device into monitor mode"
 
   if verbose:
-    print "[!] bringing %s device down" % wlan_device
+    print "[!] bringing %s device down" % wlan_iface
 
-  os.system("ifconfig %s down" % wlan_device)
-  os.system("iw dev %s interface add %s type monitor" % (wlan_device, mon_device))
+  os.system("ifconfig %s down" % wlan_iface)
+  os.system("iw dev %s interface add %s type monitor" % (wlan_iface, mon_iface))
 
   if verbose:
-    print "[!] monitor device %s created" % mon_device
+    print "[!] monitor device %s created" % mon_iface
 
   time.sleep(5)
 
   if verbose:
-    print "[!] bringing %s monitor down" % mon_device
+    print "[!] bringing %s monitor down" % mon_iface
 
-  os.system("ifconfig %s down" % mon_device)
+  os.system("ifconfig %s down" % mon_iface)
 
-  os.system("iw dev %s set type monitor" % mon_device)
+  os.system("iw dev %s set type monitor" % mon_iface)
   if verbose:
     print "[!] bringing %s monitor up" % mon_device
 
-  os.system("ifconfig %s up" % mon_device)
+  os.system("ifconfig %s up" % mon_iface)
 
 
-def remove_monitoring_device(conf):
-  mon_device = conf.get(SECTIONS_GLOBAL, "mon_device", "mon0")
-  print "[*] removing monitoring device"
-  os.system("iw %s del" % mon_device)
+def remove_monitoring_device():
+  iface = config["mon_iface"]
+  print "[*] removing monitoring interface"
+  os.system("iw %s del" % iface )
 
 
-def ssid_matches_patterns(conf, ssid):
-  patterns = conf.options("patterns")
+def ssid_matches_patterns(ssid):
+  patterns = config["patterns"]
   return any((fnmatch.fnmatch(ssid, pattern) for pattern in patterns))
 
 
@@ -115,9 +125,9 @@ def packet_handler(pkt):
     print "[+] CH: %i BSSID: %s - %s" % (channel, bssid, ssid)
 
 
-def start_sniffing(conf):
-  mon_device = conf.get(SECTIONS_GLOBAL, "mon_device", "mon0")
-  sniff(iface=mon_device, filter="type mgt and subtype beacon", store=0, prn=packet_handler)
+def start_sniffing():
+  iface = config["mon_iface"]
+  sniff(iface=iface, filter="type mgt and subtype beacon", store=False, prn=packet_handler)
 
 
 def handle_sigint(signum, frame):
@@ -125,27 +135,27 @@ def handle_sigint(signum, frame):
   global t_chopper
 
   stopper.set()
-  
+
   if t_chopper and t_chopper.is_alive():
     t_chopper.join()
-  
+
   sys.exit("[!] exiting")
 
 def main(args):
   global stopper
   global t_chopper
 
-  conf = parse_config(args.config)
-  t_chopper = threading.Thread(target=channel_hopper, args=(conf,))
+  parse_config(args.config)
+  t_chopper = threading.Thread(target=channel_hopper)
   stopper = threading.Event()
   signal.signal(signal.SIGINT, handle_sigint)
 
   try:
-    set_monitoring_mode(conf)
+    set_monitoring_mode()
     t_chopper.start()
-    start_sniffing(conf)
+    start_sniffing()
   finally:
-    remove_monitoring_device(conf)
+    remove_monitoring_device()
 
 
 if __name__ == "__main__":
