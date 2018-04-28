@@ -9,13 +9,13 @@ import random
 import binascii
 import fnmatch
 import subprocess
+import yaml
 
-from ConfigParser import ConfigParser
 from scapy.all import *
 from argparse import ArgumentParser
 
 # consts
-CHNL_SLEEP_INT = 0.5
+CH_SLEEP_INT = 0.5
 
 # globals
 verbose = False
@@ -58,7 +58,7 @@ def channel_hopper():
         try:
             channel = random.choice(channels)
             subprocess.call("iw dev %s set channel %d" % (iface, channel), shell=True, stderr=subprocess.PIPE)
-            time.sleep(CHNL_SLEEP_INT)
+            time.sleep(CH_SLEEP_INT)
         except subprocess.CalledProcessError as e:
             print "[!] exit code: %d" % e.returncode
             break
@@ -67,24 +67,23 @@ def channel_hopper():
 def parse_config(conf_file):
     global config
 
-    global_section = "global"
+    with open(conf_file, "r") as ymlfile:
+        cfg = yaml.load(ymlfile)
+        glo = cfg["global"]
 
-    cfg_parser = ConfigParser(allow_no_value=True)
-    cfg_parser.read(conf_file)
-
-    config = {
-        "iface": cfg_parser.get(global_section, "wlan_iface", "wlan0"),
-        "mon_iface": cfg_parser.get(global_section, "mon_iface", "mon0"),
-        "include_5ghz": cfg_parser.getboolean(global_section, "include_5ghz"),
-        "5ghz_channels": cfg_parser.get(global_section, "5ghz_channels"),
-        "use_smtp": cfg_parser.getboolean(global_section, "use_smtp"),
-        "detections_log": cfg_parser.get(global_section, "detections_log"),
-        "ignores": cfg_parser.items("ignores"),
-        "patterns": cfg_parser.options("patterns")
-    }
+        config = {
+            "iface": glo["wlan_iface"],
+            "mon_iface": glo["mon_iface"],
+            "include_5ghz": glo["include_5ghz"],
+            "5ghz_channels": glo["5ghz_channels"],
+            "use_smtp": glo["use_smtp"],
+            "detections_log": glo["detections_log"],
+            "ignores": cfg["ignores"],
+            "patterns": cfg["patterns"]
+        }
 
 
-def set_monitoring_mode(conf):
+def set_monitoring_mode():
     wlan_iface = config["iface"]
     mon_iface = config["mon_iface"]
 
@@ -108,7 +107,7 @@ def set_monitoring_mode(conf):
 
     os.system("iw dev %s set type monitor" % mon_iface)
     if verbose:
-        print "[!] bringing %s monitor up" % mon_device
+        print "[!] bringing %s monitor up" % mon_iface
 
     os.system("ifconfig %s up" % mon_iface)
 
@@ -162,6 +161,7 @@ def packet_handler(pkt):
 
     if bssid not in detections:
         detection = Detection(essid=essid, bssid=bssid, enc=crypto, rssi=rssi, channel=channel)
+        detections[bssid] = detection
         print "[+] %s" % detection
 
 
