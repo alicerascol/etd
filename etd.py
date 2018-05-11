@@ -52,7 +52,7 @@ def channel_hopper():
     # if we need to add the 5ghz channels in
     if use_5ghz:
         additional = config["5ghz_channels"]
-        channels.extend([int(x) for x in additional])
+        channels.extend(map(int, additional))
 
     while True:
         try:
@@ -81,6 +81,9 @@ def parse_config(conf_file):
             "ignores": cfg["ignores"],
             "patterns": cfg["patterns"]
         }
+
+    #print config["ignores"]
+    #print config["patterns"]
 
 
 def set_monitoring_mode():
@@ -159,7 +162,11 @@ def packet_handler(pkt):
         else:
             crypto.add("OPN")
 
-    if bssid not in detections:
+    # already been detected
+    if bssid in detections:
+        return
+
+    if ssid_matches_patterns(essid) and bssid not in config["ignores"]:
         detection = Detection(essid=essid, bssid=bssid, enc=crypto, rssi=rssi, channel=channel)
         detections[bssid] = detection
         print "[+] %s" % detection

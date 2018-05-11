@@ -3,7 +3,7 @@
 ##############################################################
 
 global:
-    include_5ghz: Yes
+    include_5ghz: No
     detections_log: detections.log
     use_smtp: No
     wlan_iface: wlx00c0ca8ff901
@@ -23,9 +23,12 @@ ignores:
     # supply whitelisted aps that would match the patterns provided
     # so we don't get false positives
 
-    - ca0e146f2c44: 'FRITZ!Box Guest Access'
+    - '34:81:c4:2f:dc:98'
+    - '3a:10:d5:ee:f2:98'
 
 patterns:
     # supply essids to match on this can use unix style wildcards to tailor it to specific matches
     - 'FRITZ?[bB]ox'
     - '[gG]uest'
+    - 'Pudding*'
+
