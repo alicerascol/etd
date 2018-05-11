@@ -1,23 +1,19 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import os
-import sys
-import time
-import threading
-import random
-import binascii
 import fnmatch
-import subprocess
 import yaml
+import logging
 
-from scapy.all import *
+from logging.handlers import SysLogHandler
 from argparse import ArgumentParser
+from scapy.all import *
 
 # consts
 CH_SLEEP_INT = 0.5
 
 # globals
+logger = None
 verbose = False
 detections = {}
 config = {}
@@ -81,9 +77,6 @@ def parse_config(conf_file):
             "ignores": cfg["ignores"],
             "patterns": cfg["patterns"]
         }
-
-    #print config["ignores"]
-    #print config["patterns"]
 
 
 def set_monitoring_mode():
@@ -170,6 +163,7 @@ def packet_handler(pkt):
         detection = Detection(essid=essid, bssid=bssid, enc=crypto, rssi=rssi, channel=channel)
         detections[bssid] = detection
         print "[+] %s" % detection
+        logger.info(detection)
 
 
 def start_sniffing():
@@ -178,10 +172,20 @@ def start_sniffing():
 
 
 def main(args):
+    global logger
+
+    logger = logging.getLogger('ETD')
+    logger.setLevel(logging.INFO)
+
+    syslog_handler = SysLogHandler(('127.0.0.1', 514))
+    syslog_handler.setLevel(logging.INFO)
+
+    logger.addHandler(syslog_handler)
 
     parse_config(args.config)
     hopper_thread = threading.Thread(target=channel_hopper)
     hopper_thread.setDaemon(True)
+
 
     try:
         set_monitoring_mode()
