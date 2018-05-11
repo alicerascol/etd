@@ -52,7 +52,7 @@ def channel_hopper():
     # if we need to add the 5ghz channels in
     if use_5ghz:
         additional = config["5ghz_channels"]
-        channels.extend([int(x) for x in additional.split(",")])
+        channels.extend([int(x) for x in additional])
 
     while True:
         try:
@@ -190,12 +190,12 @@ if __name__ == "__main__":
         sys.exit("[!] windows not supported")
 
     if os.getuid() != 0:
-        sys.exit("[!] must be ran with root priveleges")
+        sys.exit("[!] must be ran with root privileges")
 
     parser = ArgumentParser(description="Evil Twin Detector tool - Mike Cromwell 2018")
 
     parser.add_argument("-v", "--verbose", help="add extra logging", default=False, action="store_true")
-    parser.add_argument("-c", "--config", help="use different config file", type=str, default="etd.conf")
+    parser.add_argument("-c", "--config", help="use different config file", type=str, default="etd.yaml")
 
     args = parser.parse_args()
     verbose = args.verbose

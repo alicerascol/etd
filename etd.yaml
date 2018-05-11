@@ -23,10 +23,9 @@ ignores:
     # supply whitelisted aps that would match the patterns provided
     # so we don't get false positives
 
-    - ca:0e:14:6f:2c:44: FRITZ!Box Guest Access
+    - ca0e146f2c44: 'FRITZ!Box Guest Access'
 
 patterns:
     # supply essids to match on this can use unix style wildcards to tailor it to specific matches
-
-    - FRITZ?[bB]ox
-    - [gG]uest
+    - 'FRITZ?[bB]ox'
+    - '[gG]uest'
