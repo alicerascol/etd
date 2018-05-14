@@ -3,19 +3,19 @@
 
 import fnmatch
 import yaml
-import logging
 
 from logging.handlers import SysLogHandler
 from argparse import ArgumentParser
 from scapy.all import *
+from scapy.layers.dot11 import *
 
 # consts
 CH_SLEEP_INT = 0.5
 
 # globals
-logger = None
+syslogger = None  # type: logging.Logger
 verbose = False
-detections = {}
+detections = {}  # type: Dict[str, Detection]
 config = {}
 
 
@@ -74,6 +74,8 @@ def parse_config(conf_file):
             "5ghz_channels": glo["5ghz_channels"],
             "use_smtp": glo["use_smtp"],
             "detections_log": glo["detections_log"],
+            "smtp": glo["smtp"],
+            "syslog": glo["syslog"],
             "ignores": cfg["ignores"],
             "patterns": cfg["patterns"]
         }
@@ -163,7 +165,7 @@ def packet_handler(pkt):
         detection = Detection(essid=essid, bssid=bssid, enc=crypto, rssi=rssi, channel=channel)
         detections[bssid] = detection
         print "[+] %s" % detection
-        logger.info(detection)
+        syslogger.info(detection)
 
 
 def start_sniffing():
@@ -172,15 +174,15 @@ def start_sniffing():
 
 
 def main(args):
-    global logger
+    global syslogger
 
-    logger = logging.getLogger('ETD')
-    logger.setLevel(logging.INFO)
+    syslogger = logging.getLogger('ETD')
+    syslogger.setLevel(logging.INFO)
 
     syslog_handler = SysLogHandler(('127.0.0.1', 514))
     syslog_handler.setLevel(logging.INFO)
 
-    logger.addHandler(syslog_handler)
+    syslogger.addHandler(syslog_handler)
 
     parse_config(args.config)
     hopper_thread = threading.Thread(target=channel_hopper)
