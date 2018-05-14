@@ -72,7 +72,6 @@ def parse_config(conf_file):
             "mon_iface": glo["mon_iface"],
             "include_5ghz": glo["include_5ghz"],
             "5ghz_channels": glo["5ghz_channels"],
-            "use_smtp": glo["use_smtp"],
             "detections_log": glo["detections_log"],
             "smtp": glo["smtp"],
             "syslog": glo["syslog"],
@@ -176,15 +175,18 @@ def start_sniffing():
 def main(args):
     global syslogger
 
+    parse_config(args.config)
+
     syslogger = logging.getLogger('ETD')
     syslogger.setLevel(logging.INFO)
 
-    syslog_handler = SysLogHandler(('127.0.0.1', 514))
+    syslog_config = config["syslog"]
+
+    syslog_handler = SysLogHandler((syslog_config["server"], int(syslog_config["port"])))
     syslog_handler.setLevel(logging.INFO)
 
     syslogger.addHandler(syslog_handler)
 
-    parse_config(args.config)
     hopper_thread = threading.Thread(target=channel_hopper)
     hopper_thread.setDaemon(True)
 
