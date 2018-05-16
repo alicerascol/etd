@@ -4,10 +4,13 @@
 
 global:
     include_5ghz: No
-    detections_log: detections.log
     wlan_iface: wlx00c0ca8ff901
     mon_iface: mon0
     5ghz_channels: [36,38,40,44,46,48,52,54,56,60,62,64,100,102,104,108,110,112,116,118,120,124,126,128,132,134,136,140]
+
+logging:
+    level: WARN
+    name: 'Evil Twin Detector'
 
 smtp: # smtp settings
     enabled: No
@@ -20,10 +23,9 @@ smtp: # smtp settings
     subject: ETD ALERT
 
 syslog: # syslog settings
-    enabled: No
+    enabled: Yes
     server: localhost
     port: 514
-    level: WARN
 
 ignores:
     # supply whitelisted aps that would match the patterns provided
@@ -34,7 +36,6 @@ ignores:
 
 patterns:
     # supply essids to match on this can use unix style wildcards to tailor it to specific matches
-    - 'FRITZ?[bB]ox'
-    - '[gG]uest'
+    - 'Gondor'
     - 'Pudding*'
 

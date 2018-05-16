@@ -4,7 +4,7 @@
 import fnmatch
 import yaml
 
-from logging.handlers import SysLogHandler
+from logging.handlers import SysLogHandler, SMTPHandler
 from argparse import ArgumentParser
 from scapy.all import *
 from scapy.layers.dot11 import *
@@ -13,7 +13,7 @@ from scapy.layers.dot11 import *
 CH_SLEEP_INT = 0.5
 
 # globals
-syslogger = None  # type: logging.Logger
+detection_logger = None  # type: logging.Logger
 verbose = False
 detections = {}  # type: Dict[str, Detection]
 config = {}
@@ -72,11 +72,11 @@ def parse_config(conf_file):
             "mon_iface": glo["mon_iface"],
             "include_5ghz": glo["include_5ghz"],
             "5ghz_channels": glo["5ghz_channels"],
-            "detections_log": glo["detections_log"],
-            "smtp": glo["smtp"],
-            "syslog": glo["syslog"],
+            "smtp": cfg["smtp"],
+            "syslog": cfg["syslog"],
             "ignores": cfg["ignores"],
-            "patterns": cfg["patterns"]
+            "patterns": cfg["patterns"],
+            "logging": cfg["logging"]
         }
 
 
@@ -161,10 +161,12 @@ def packet_handler(pkt):
         return
 
     if ssid_matches_patterns(essid) and bssid not in config["ignores"]:
+        level = logging.getLevelName(config["logging"]["level"])
+
         detection = Detection(essid=essid, bssid=bssid, enc=crypto, rssi=rssi, channel=channel)
         detections[bssid] = detection
         print "[+] %s" % detection
-        syslogger.info(detection)
+        detection_logger.log(level, detection)
 
 
 def start_sniffing():
@@ -172,21 +174,40 @@ def start_sniffing():
     sniff(iface=iface, filter="type mgt and subtype beacon", store=False, prn=packet_handler)
 
 
-def main(args):
-    global syslogger
+def configure_logging():
+    global detection_logger
 
-    parse_config(args.config)
+    logging_config = config["logging"]
+    level = logging.getLevelName(logging_config["level"])
+    formatter = logging.Formatter("%(asctime)s %(name)s: %(message)s")
 
-    syslogger = logging.getLogger('ETD')
-    syslogger.setLevel(logging.INFO)
+    detection_logger = logging.getLogger(logging_config["name"])
+    detection_logger.setLevel(level)
+
+    # make sure we have something to log against
+    detection_logger.addHandler(logging.NullHandler())
 
     syslog_config = config["syslog"]
+    smtp_config = config["smtp"]
 
-    syslog_handler = SysLogHandler((syslog_config["server"], int(syslog_config["port"])))
-    syslog_handler.setLevel(logging.INFO)
+    if syslog_config["enabled"]:  # use syslog
+        syslog_handler = SysLogHandler((syslog_config["server"], int(syslog_config["port"])))
+        syslog_handler.setFormatter(formatter)
+        detection_logger.addHandler(syslog_handler)
 
-    syslogger.addHandler(syslog_handler)
+    if smtp_config["enabled"]:  # use smtp
+        if smtp_config["user"]:  # check if we need credentials
+            creds = (smtp_config["user"], smtp_config["password"])
 
+        smtp_handler = SMTPHandler((smtp_config["server"], smtp_config["port"]), fromadr=smtp_config["from"], toaddrs=smtp_config["to"], subject=smtp_config["subject"], credentials=creds)
+        smtp_handler.setFormatter(formatter)
+        detection_logger.addHandler(smtp_handler)
+
+
+def main(args):
+
+    parse_config(args.config)
+    configure_logging()
     hopper_thread = threading.Thread(target=channel_hopper)
     hopper_thread.setDaemon(True)
 
