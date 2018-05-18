@@ -202,10 +202,12 @@ def configure_logging():
         detection_logger.addHandler(syslog_handler)
 
     if smtp_config["enabled"]:  # use smtp
+        creds = None
+
         if smtp_config["user"]:  # check if we need credentials
             creds = (smtp_config["user"], smtp_config["password"])
 
-        smtp_handler = SMTPHandler((smtp_config["server"], smtp_config["port"]), fromadr=smtp_config["from"], toaddrs=smtp_config["to"], subject=smtp_config["subject"], credentials=creds)
+        smtp_handler = SMTPHandler((smtp_config["server"], smtp_config["port"]), fromaddr=smtp_config["from"], toaddrs=smtp_config["to"], subject=smtp_config["subject"], credentials=creds)
         smtp_handler.setFormatter(formatter)
         detection_logger.addHandler(smtp_handler)
 
