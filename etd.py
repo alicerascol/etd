@@ -228,10 +228,10 @@ def main(args):
 
 if __name__ == "__main__":
 
-    if os.name == "nt":
-        sys.exit("[!] windows not supported")
+    if "linux" not in sys.platform:
+        sys.exit("[!] only linux supported")
 
-    if os.getuid() != 0:
+    if os.geteuid() != 0:
         sys.exit("[!] must be ran with root privileges")
 
     parser = ArgumentParser(description="Evil Twin Detector tool - Mike Cromwell 2018")

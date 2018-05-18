@@ -16,11 +16,11 @@ smtp: # smtp settings
     enabled: No
     server: localhost
     port: 25
-    user: etd
-    password: Password123!
+    user: ''
+    password: ''
     from: etd@localhost
     to: root@localhost
-    subject: 'ETD ALERT'
+    subject: 'ETD DETECTION'
 
 syslog: # syslog settings
     enabled: No
