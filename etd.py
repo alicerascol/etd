@@ -25,7 +25,6 @@ verbose = False
 detections = {}  # type: Dict[str, Detection]
 config = {}
 
-
 class Detection:
 
     def __init__(self, **kwargs):

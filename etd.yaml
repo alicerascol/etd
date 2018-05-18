@@ -1,10 +1,10 @@
 ##############################################################
-# main config file for etd
+# baseline config file for etd
 ##############################################################
 
 global:
-    include_5ghz: No
-    wlan_iface: wlx00c0ca8ff901
+    include_5ghz: Yes
+    wlan_iface: wlan0
     mon_iface: mon0
     5ghz_channels: [36,38,40,44,46,48,52,54,56,60,62,64,100,102,104,108,110,112,116,118,120,124,126,128,132,134,136,140]
 
@@ -20,10 +20,10 @@ smtp: # smtp settings
     password: Password123!
     from: etd@localhost
     to: root@localhost
-    subject: ETD ALERT
+    subject: 'ETD ALERT'
 
 syslog: # syslog settings
-    enabled: Yes
+    enabled: No
     server: localhost
     port: 514
 
@@ -31,11 +31,8 @@ ignores:
     # supply whitelisted aps that would match the patterns provided
     # so we don't get false positives
 
-    - '34:81:c4:2f:dc:98'
-    - '3a:10:d5:ee:f2:98'
+    - 'aa:bb:cc:dd:ee:ff'
 
 patterns:
     # supply essids to match on this can use unix style wildcards to tailor it to specific matches
-    - 'Gondor'
-    - 'Pudding*'
-
+    - '[gG]uest*'
