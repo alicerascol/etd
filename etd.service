@@ -1,0 +1,9 @@
+[Unit]
+Description=Evil Twin Detector
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/etd.py --config=/etc/etd/etd.yaml
+
+[Install]
+WantedBy=multi-user.target
