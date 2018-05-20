@@ -46,7 +46,7 @@ The existing etd.yaml config file will be copied into _/etc/etd_ so any changes 
 
 ## Configuration
 
-ETD uses a yaml config file, when you clone the repo it has a baseline version called _etd.py_, 
+ETD uses a yaml config file, when you clone the repo it has a baseline version called _etd.yaml_, 
 these will need to be tailored to your environment.
 
 ### Global
