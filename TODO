@@ -1,0 +1,2 @@
+* Change to use setup.py instead of setup.sh
+* Allow syslog protocol to be specified
